@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,51 +14,151 @@ interface Sale {
   timestamp: Date;
 }
 
+interface DayData {
+  date: string;
+  cashStart: string;
+  cardStart: string;
+  sales: Sale[];
+  isLocked: boolean;
+}
+
 export default function Index() {
-  const [sales, setSales] = useState<Sale[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [allDaysData, setAllDaysData] = useState<Record<string, DayData>>(() => {
+    const saved = localStorage.getItem('cashRegisterData');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const currentDayData = allDaysData[currentDate] || {
+    date: currentDate,
+    cashStart: '0',
+    cardStart: '0',
+    sales: [],
+    isLocked: false,
+  };
+
   const [saleAmount, setSaleAmount] = useState('');
-  const [cashStart, setCashStart] = useState('0');
-  const [cardStart, setCardStart] = useState('0');
-  const [isEditingStart, setIsEditingStart] = useState(true);
+
+  useEffect(() => {
+    localStorage.setItem('cashRegisterData', JSON.stringify(allDaysData));
+  }, [allDaysData]);
+
+  const updateDayData = (updates: Partial<DayData>) => {
+    setAllDaysData(prev => ({
+      ...prev,
+      [currentDate]: { ...currentDayData, ...updates },
+    }));
+  };
 
   const addSale = (paymentMethod: 'cash' | 'card') => {
     const amount = parseFloat(saleAmount);
     if (isNaN(amount) || amount <= 0) return;
 
     const newSale: Sale = {
-      id: sales.length + 1,
+      id: currentDayData.sales.length + 1,
       amount,
       paymentMethod,
       timestamp: new Date(),
     };
 
-    setSales([newSale, ...sales]);
+    updateDayData({ sales: [newSale, ...currentDayData.sales] });
     setSaleAmount('');
   };
 
-  const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.amount, 0);
-  const cardSales = sales.filter(s => s.paymentMethod === 'card').reduce((sum, s) => sum + s.amount, 0);
-  const cashEnd = parseFloat(cashStart) + cashSales;
-  const cardEnd = parseFloat(cardStart) + cardSales;
-  const totalStart = parseFloat(cashStart) + parseFloat(cardStart);
+  const changeDate = (days: number) => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + days);
+    setCurrentDate(newDate.toISOString().split('T')[0]);
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const cashSales = currentDayData.sales
+    .filter(s => s.paymentMethod === 'cash')
+    .reduce((sum, s) => sum + s.amount, 0);
+  const cardSales = currentDayData.sales
+    .filter(s => s.paymentMethod === 'card')
+    .reduce((sum, s) => sum + s.amount, 0);
+  const cashEnd = parseFloat(currentDayData.cashStart) + cashSales;
+  const cardEnd = parseFloat(currentDayData.cardStart) + cardSales;
+  const totalStart = parseFloat(currentDayData.cashStart) + parseFloat(currentDayData.cardStart);
   const totalEnd = cashEnd + cardEnd;
+
+  const isToday = currentDate === new Date().toISOString().split('T')[0];
+  const canEdit = isToday && !currentDayData.isLocked;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* Header with Date Navigation */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-slate-900">Касса</h1>
             <p className="text-slate-600 mt-1">Система учета продаж</p>
           </div>
-          <div className="text-right">
-            <div className="text-sm text-slate-600">Сегодня</div>
-            <div className="text-lg font-semibold text-slate-900">
-              {new Date().toLocaleDateString('ru-RU')}
+          
+          <Card className="w-full md:w-auto border-2 border-sky-100">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => changeDate(-1)}
+                  className="h-10 w-10"
+                >
+                  <Icon name="ChevronLeft" size={20} />
+                </Button>
+                
+                <div className="text-center min-w-[200px]">
+                  <div className="text-sm text-slate-600">
+                    {isToday ? 'Сегодня' : 'Архив'}
+                  </div>
+                  <div className="text-lg font-semibold text-slate-900">
+                    {new Date(currentDate + 'T00:00:00').toLocaleDateString('ru-RU', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => changeDate(1)}
+                  className="h-10 w-10"
+                  disabled={isToday}
+                >
+                  <Icon name="ChevronRight" size={20} />
+                </Button>
+              </div>
+              
+              {!isToday && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={goToToday}
+                  className="w-full mt-3"
+                >
+                  <Icon name="Calendar" size={16} className="mr-2" />
+                  Вернуться к сегодня
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {!isToday && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4 flex items-center gap-3">
+            <Icon name="Archive" size={24} className="text-amber-600" />
+            <div>
+              <div className="font-semibold text-amber-900">Режим просмотра архива</div>
+              <div className="text-sm text-amber-700">Данные этого дня только для чтения</div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -75,9 +175,9 @@ export default function Index() {
                 <Label className="text-slate-600">На начало дня</Label>
                 <Input
                   type="number"
-                  value={cashStart}
-                  onChange={(e) => setCashStart(e.target.value)}
-                  disabled={!isEditingStart}
+                  value={currentDayData.cashStart}
+                  onChange={(e) => updateDayData({ cashStart: e.target.value })}
+                  disabled={!canEdit}
                   className="text-2xl font-bold text-emerald-700 h-14"
                   placeholder="0"
                 />
@@ -112,9 +212,9 @@ export default function Index() {
                 <Label className="text-slate-600">На начало дня</Label>
                 <Input
                   type="number"
-                  value={cardStart}
-                  onChange={(e) => setCardStart(e.target.value)}
-                  disabled={!isEditingStart}
+                  value={currentDayData.cardStart}
+                  onChange={(e) => updateDayData({ cardStart: e.target.value })}
+                  disabled={!canEdit}
                   className="text-2xl font-bold text-violet-700 h-14"
                   placeholder="0"
                 />
@@ -140,72 +240,87 @@ export default function Index() {
         {/* Total Summary */}
         <Card className="border-2 border-sky-100 bg-white shadow-lg">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
               <div>
                 <div className="text-sm text-slate-600 mb-2">Итого на начало</div>
-                <div className="text-3xl font-bold text-sky-700">{totalStart.toFixed(2)} ₽</div>
+                <div className="text-2xl md:text-3xl font-bold text-sky-700">{totalStart.toFixed(2)} ₽</div>
               </div>
               <div>
                 <div className="text-sm text-slate-600 mb-2">Итого на конец</div>
-                <div className="text-3xl font-bold text-sky-700">{totalEnd.toFixed(2)} ₽</div>
+                <div className="text-2xl md:text-3xl font-bold text-sky-700">{totalEnd.toFixed(2)} ₽</div>
+              </div>
+              <div>
+                <div className="text-sm text-slate-600 mb-2">Выручка</div>
+                <div className="text-2xl md:text-3xl font-bold text-green-600">
+                  +{(cashSales + cardSales).toFixed(2)} ₽
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-slate-600 mb-2">Продаж</div>
+                <div className="text-2xl md:text-3xl font-bold text-slate-700">
+                  {currentDayData.sales.length}
+                </div>
               </div>
             </div>
-            {isEditingStart && (
+            {canEdit && (
               <Button
-                onClick={() => setIsEditingStart(false)}
+                onClick={() => updateDayData({ isLocked: true })}
                 className="mt-4 w-full"
                 size="lg"
               >
-                Зафиксировать начальные суммы
+                <Icon name="Lock" size={20} className="mr-2" />
+                Закрыть день
               </Button>
             )}
           </CardContent>
         </Card>
 
         {/* Sales Entry */}
-        <Card className="border-2 border-slate-200 bg-white shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-white">
-            <CardTitle className="flex items-center gap-2 text-slate-900">
-              <Icon name="Plus" size={24} />
-              Новая продажа
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <Label className="text-slate-600 mb-2 block">Сумма продажи</Label>
-                <Input
-                  type="number"
-                  value={saleAmount}
-                  onChange={(e) => setSaleAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="text-2xl font-bold h-14"
-                  disabled={isEditingStart}
-                />
+        {isToday && (
+          <Card className="border-2 border-slate-200 bg-white shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-white">
+              <CardTitle className="flex items-center gap-2 text-slate-900">
+                <Icon name="Plus" size={24} />
+                Новая продажа
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <Label className="text-slate-600 mb-2 block">Сумма продажи</Label>
+                  <Input
+                    type="number"
+                    value={saleAmount}
+                    onChange={(e) => setSaleAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="text-2xl font-bold h-14"
+                    disabled={currentDayData.isLocked}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => addSale('cash')}
+                    disabled={currentDayData.isLocked}
+                    size="lg"
+                    className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 h-14 px-8"
+                  >
+                    <Icon name="Wallet" size={20} className="mr-2" />
+                    Наличные
+                  </Button>
+                  <Button
+                    onClick={() => addSale('card')}
+                    disabled={currentDayData.isLocked}
+                    size="lg"
+                    className="flex-1 md:flex-none bg-violet-600 hover:bg-violet-700 h-14 px-8"
+                  >
+                    <Icon name="CreditCard" size={20} className="mr-2" />
+                    Карта
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => addSale('cash')}
-                  disabled={isEditingStart}
-                  size="lg"
-                  className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 h-14 px-8"
-                >
-                  <Icon name="Wallet" size={20} className="mr-2" />
-                  Наличные
-                </Button>
-                <Button
-                  onClick={() => addSale('card')}
-                  disabled={isEditingStart}
-                  size="lg"
-                  className="flex-1 md:flex-none bg-violet-600 hover:bg-violet-700 h-14 px-8"
-                >
-                  <Icon name="CreditCard" size={20} className="mr-2" />
-                  Карта
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sales List */}
         <Card className="border-2 border-slate-200 bg-white shadow-lg">
@@ -216,19 +331,19 @@ export default function Index() {
                 Журнал продаж
               </div>
               <Badge variant="secondary" className="text-lg px-4 py-1">
-                {sales.length} продаж
+                {currentDayData.sales.length} продаж
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            {sales.length === 0 ? (
+            {currentDayData.sales.length === 0 ? (
               <div className="text-center py-12 text-slate-500">
                 <Icon name="ShoppingBag" size={48} className="mx-auto mb-4 opacity-50" />
                 <p>Продаж пока нет</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {sales.map((sale) => (
+                {currentDayData.sales.map((sale) => (
                   <div
                     key={sale.id}
                     className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
@@ -242,7 +357,7 @@ export default function Index() {
                           {sale.amount.toFixed(2)} ₽
                         </div>
                         <div className="text-sm text-slate-600">
-                          {sale.timestamp.toLocaleTimeString('ru-RU')}
+                          {new Date(sale.timestamp).toLocaleTimeString('ru-RU')}
                         </div>
                       </div>
                     </div>
