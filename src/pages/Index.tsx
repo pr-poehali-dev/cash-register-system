@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import Icon from '@/components/ui/icon';
 
 interface Sale {
@@ -44,6 +46,7 @@ export default function Index() {
   const [editAmount, setEditAmount] = useState('');
   const [editComment, setEditComment] = useState('');
   const [editPaymentMethod, setEditPaymentMethod] = useState<'cash' | 'card'>('cash');
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('cashRegisterData', JSON.stringify(allDaysData));
@@ -87,6 +90,13 @@ export default function Index() {
 
   const goToToday = () => {
     setCurrentDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setCurrentDate(date.toISOString().split('T')[0]);
+      setIsCalendarOpen(false);
+    }
   };
 
   const startEditSale = (sale: Sale) => {
@@ -181,18 +191,35 @@ export default function Index() {
                     <Icon name="ChevronLeft" size={20} />
                   </Button>
                   
-                  <div className="text-center min-w-[200px]">
-                    <div className="text-sm text-slate-600">
-                      {isToday ? 'Сегодня' : 'Архив'}
-                    </div>
-                    <div className="text-lg font-semibold text-slate-900">
-                      {new Date(currentDate + 'T00:00:00').toLocaleDateString('ru-RU', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </div>
-                  </div>
+                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="min-w-[200px] hover:bg-slate-100"
+                      >
+                        <div className="text-center w-full">
+                          <div className="text-sm text-slate-600">
+                            {isToday ? 'Сегодня' : 'Архив'}
+                          </div>
+                          <div className="text-lg font-semibold text-slate-900">
+                            {new Date(currentDate + 'T00:00:00').toLocaleDateString('ru-RU', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </div>
+                        </div>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="center">
+                      <Calendar
+                        mode="single"
+                        selected={new Date(currentDate + 'T00:00:00')}
+                        onSelect={handleDateSelect}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
 
                   <Button
                     variant="outline"
