@@ -79,6 +79,12 @@ export default function Index() {
     setCurrentDate(newDate.toISOString().split('T')[0]);
   };
 
+  const changeMonth = (months: number) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + months);
+    setCurrentDate(newDate.toISOString().split('T')[0]);
+  };
+
   const goToToday = () => {
     setCurrentDate(new Date().toISOString().split('T')[0]);
   };
@@ -141,38 +147,67 @@ export default function Index() {
           
           <Card className="w-full md:w-auto border-2 border-sky-100">
             <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => changeDate(-1)}
-                  className="h-10 w-10"
-                >
-                  <Icon name="ChevronLeft" size={20} />
-                </Button>
-                
-                <div className="text-center min-w-[200px]">
-                  <div className="text-sm text-slate-600">
-                    {isToday ? 'Сегодня' : 'Архив'}
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => changeMonth(-1)}
+                    className="h-8 w-8"
+                  >
+                    <Icon name="ChevronsLeft" size={16} />
+                  </Button>
+                  <div className="text-xs text-slate-500 min-w-[60px] text-center">
+                    месяц
                   </div>
-                  <div className="text-lg font-semibold text-slate-900">
-                    {new Date(currentDate + 'T00:00:00').toLocaleDateString('ru-RU', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => changeMonth(1)}
+                    className="h-8 w-8"
+                    disabled={isToday}
+                  >
+                    <Icon name="ChevronsRight" size={16} />
+                  </Button>
                 </div>
+                
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => changeDate(-1)}
+                    className="h-10 w-10"
+                  >
+                    <Icon name="ChevronLeft" size={20} />
+                  </Button>
+                  
+                  <div className="text-center min-w-[200px]">
+                    <div className="text-sm text-slate-600">
+                      {isToday ? 'Сегодня' : 'Архив'}
+                    </div>
+                    <div className="text-lg font-semibold text-slate-900">
+                      {new Date(currentDate + 'T00:00:00').toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </div>
+                  </div>
 
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => changeDate(1)}
-                  className="h-10 w-10"
-                  disabled={isToday}
-                >
-                  <Icon name="ChevronRight" size={20} />
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => changeDate(1)}
+                    className="h-10 w-10"
+                    disabled={isToday}
+                  >
+                    <Icon name="ChevronRight" size={20} />
+                  </Button>
+                </div>
+                
+                <div className="text-xs text-center text-slate-500">
+                  день
+                </div>
               </div>
               
               {!isToday && (
