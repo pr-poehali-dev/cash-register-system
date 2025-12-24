@@ -40,6 +40,10 @@ export default function Index() {
 
   const [saleAmount, setSaleAmount] = useState('');
   const [saleComment, setSaleComment] = useState('');
+  const [editingSaleId, setEditingSaleId] = useState<number | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editComment, setEditComment] = useState('');
+  const [editPaymentMethod, setEditPaymentMethod] = useState<'cash' | 'card'>('cash');
 
   useEffect(() => {
     localStorage.setItem('cashRegisterData', JSON.stringify(allDaysData));
@@ -77,6 +81,38 @@ export default function Index() {
 
   const goToToday = () => {
     setCurrentDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const startEditSale = (sale: Sale) => {
+    setEditingSaleId(sale.id);
+    setEditAmount(sale.amount.toString());
+    setEditComment(sale.comment || '');
+    setEditPaymentMethod(sale.paymentMethod);
+  };
+
+  const cancelEditSale = () => {
+    setEditingSaleId(null);
+    setEditAmount('');
+    setEditComment('');
+  };
+
+  const saveEditSale = () => {
+    const amount = parseFloat(editAmount);
+    if (isNaN(amount) || amount <= 0) return;
+
+    const updatedSales = currentDayData.sales.map(sale =>
+      sale.id === editingSaleId
+        ? { ...sale, amount, comment: editComment.trim() || undefined, paymentMethod: editPaymentMethod }
+        : sale
+    );
+
+    updateDayData({ sales: updatedSales });
+    cancelEditSale();
+  };
+
+  const deleteSale = (saleId: number) => {
+    const updatedSales = currentDayData.sales.filter(sale => sale.id !== saleId);
+    updateDayData({ sales: updatedSales });
   };
 
   const cashSales = currentDayData.sales
@@ -363,41 +399,130 @@ export default function Index() {
                 {currentDayData.sales.map((sale) => (
                   <div
                     key={sale.id}
-                    className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                    className="p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="bg-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-slate-700 shadow flex-shrink-0">
-                        #{sale.id}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-lg text-slate-900">
-                          {sale.amount.toFixed(2)} ₽
-                        </div>
-                        <div className="text-sm text-slate-600">
-                          {new Date(sale.timestamp).toLocaleTimeString('ru-RU')}
-                        </div>
-                        {sale.comment && (
-                          <div className="text-sm text-slate-500 mt-1 flex items-center gap-1">
-                            <Icon name="MessageSquare" size={14} />
-                            <span className="truncate">{sale.comment}</span>
+                    {editingSaleId === sale.id ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-slate-600 mb-1 block">Сумма</Label>
+                            <Input
+                              type="number"
+                              value={editAmount}
+                              onChange={(e) => setEditAmount(e.target.value)}
+                              className="h-10"
+                            />
                           </div>
-                        )}
+                          <div>
+                            <Label className="text-xs text-slate-600 mb-1 block">Комментарий</Label>
+                            <Input
+                              type="text"
+                              value={editComment}
+                              onChange={(e) => setEditComment(e.target.value)}
+                              className="h-10"
+                              placeholder="Комментарий"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant={editPaymentMethod === 'cash' ? 'default' : 'outline'}
+                            onClick={() => setEditPaymentMethod('cash')}
+                            className="flex-1"
+                          >
+                            <Icon name="Wallet" size={16} className="mr-1" />
+                            Наличные
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={editPaymentMethod === 'card' ? 'default' : 'outline'}
+                            onClick={() => setEditPaymentMethod('card')}
+                            className="flex-1"
+                          >
+                            <Icon name="CreditCard" size={16} className="mr-1" />
+                            Карта
+                          </Button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={saveEditSale}
+                            className="flex-1 bg-green-600 hover:bg-green-700"
+                          >
+                            <Icon name="Check" size={16} className="mr-1" />
+                            Сохранить
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={cancelEditSale}
+                            className="flex-1"
+                          >
+                            <Icon name="X" size={16} className="mr-1" />
+                            Отмена
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <Badge
-                      className={
-                        sale.paymentMethod === 'cash'
-                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 flex-shrink-0'
-                          : 'bg-violet-100 text-violet-700 hover:bg-violet-200 flex-shrink-0'
-                      }
-                    >
-                      <Icon
-                        name={sale.paymentMethod === 'cash' ? 'Wallet' : 'CreditCard'}
-                        size={16}
-                        className="mr-1"
-                      />
-                      {sale.paymentMethod === 'cash' ? 'Наличные' : 'Карта'}
-                    </Badge>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="bg-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-slate-700 shadow flex-shrink-0">
+                            #{sale.id}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-lg text-slate-900">
+                              {sale.amount.toFixed(2)} ₽
+                            </div>
+                            <div className="text-sm text-slate-600">
+                              {new Date(sale.timestamp).toLocaleTimeString('ru-RU')}
+                            </div>
+                            {sale.comment && (
+                              <div className="text-sm text-slate-500 mt-1 flex items-center gap-1">
+                                <Icon name="MessageSquare" size={14} />
+                                <span className="truncate">{sale.comment}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={
+                              sale.paymentMethod === 'cash'
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 flex-shrink-0'
+                                : 'bg-violet-100 text-violet-700 hover:bg-violet-200 flex-shrink-0'
+                            }
+                          >
+                            <Icon
+                              name={sale.paymentMethod === 'cash' ? 'Wallet' : 'CreditCard'}
+                              size={16}
+                              className="mr-1"
+                            />
+                            {sale.paymentMethod === 'cash' ? 'Наличные' : 'Карта'}
+                          </Badge>
+                          {canEdit && (
+                            <div className="flex gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => startEditSale(sale)}
+                                className="h-8 w-8"
+                              >
+                                <Icon name="Pencil" size={16} />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => deleteSale(sale.id)}
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Icon name="Trash2" size={16} />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
